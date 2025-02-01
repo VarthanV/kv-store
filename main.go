@@ -24,6 +24,7 @@ func main() {
 		logrus.Error("error in accepting connection ", err)
 		return
 	}
+	defer conn.Close()
 
 	// Since Redis operates in a single threaded model we try to learn
 	// and acheive the same here. Redis uses epoll and select to listen from multiple
@@ -42,7 +43,5 @@ func main() {
 		conn.Write([]byte("+OK\r\n"))
 		// PONG
 	}
-
-	defer conn.Close()
 
 }
