@@ -1,27 +1,34 @@
-package main
+package resp
 
 import (
 	"bufio"
 	"fmt"
 	"io"
 	"strconv"
+
+	"github.com/VarthanV/kv-store/pkg/objects"
 )
 
 // Specs for RESP protocol
 // https://redis.io/docs/latest/develop/reference/protocol-spec/
 
 // First byte - Type identifiers
+
+type DataType rune
+
 const (
-	STRING  = '+'
-	ERROR   = '-'
-	INTEGER = ':'
-	BULK    = '$'
-	ARRAY   = '*'
+	STRING  DataType = '+'
+	ERROR   DataType = '-'
+	INTEGER DataType = ':'
+	BULK    DataType = '$'
+	ARRAY   DataType = '*'
 )
 
 type Value struct {
 	// type inferred from the first byte
 	typ string
+	// key received when asked to store key value pair
+	key string
 	// string received when asked to store simple string
 	str string
 	// string received when asked to store bulk string
@@ -58,7 +65,7 @@ func (r *Resp) readLine() (line []byte, n int, err error) {
 	return line[:len(line)-2], n, nil
 }
 
-func (r *Resp) readInteger() (x int, n int, err error) {
+func (r *Resp) readIntegerFromInput() (val int, n int, err error) {
 	line, n, err := r.readLine()
 	if err != nil {
 		return 0, 0, err
@@ -79,11 +86,12 @@ func (r *Resp) Read() (*Value, error) {
 		return nil, err
 	}
 
-	switch typ {
+	switch DataType(typ) {
 	case ARRAY:
 		return r.readArray()
 	case BULK:
 		return r.readBulk()
+
 	default:
 		return nil, fmt.Errorf("unknown type %s", string(typ))
 	}
@@ -94,14 +102,20 @@ func (r *Resp) readArray() (*Value, error) {
 	v.typ = "array"
 
 	// length of array first to be read
-	len, _, err := r.readInteger()
+	len, _, err := r.readIntegerFromInput()
 	if err != nil {
 		return nil, err
 	}
 
-	v.arr = make([]Value, len)
+	v.arr = make([]Value, 0)
 	for i := 0; i < len; i++ {
+		val, err := r.Read()
+		if err != nil {
+			return nil, err
+		}
 
+		// append parsed value to array
+		v.arr = append(v.arr, *val)
 	}
 
 	return &v, nil
@@ -112,7 +126,7 @@ func (r *Resp) readBulk() (*Value, error) {
 
 	v.typ = "bulk"
 
-	len, _, err := r.readInteger()
+	len, _, err := r.readIntegerFromInput()
 	if err != nil {
 		return nil, err
 	}
@@ -126,5 +140,17 @@ func (r *Resp) readBulk() (*Value, error) {
 	// Read the trailing CRLF
 	r.readLine()
 
+	return &v, nil
+}
+
+func (r *Resp) readInteger() (*Value, error) {
+	v := Value{}
+	v.typ = string(objects.INTEGER)
+
+	val, _, err := r.readIntegerFromInput()
+	if err != nil {
+		return nil, err
+	}
+	v.num = val
 	return &v, nil
 }

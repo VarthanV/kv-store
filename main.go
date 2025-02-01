@@ -2,10 +2,9 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"net"
-	"os"
 
+	"github.com/VarthanV/kv-store/resp"
 	"github.com/sirupsen/logrus"
 )
 
@@ -30,20 +29,18 @@ func main() {
 	// and acheive the same here. Redis uses epoll and select to listen from multiple
 	// fds simultaneously. This is just to make things simple
 	for {
-		buf := make([]byte, 1024)
-
-		// read message from client
-		_, err = conn.Read(buf)
+		resp := resp.NewResp(conn)
+		value, err := resp.Read()
 		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			logrus.Error("error reading from client: ", err)
-			os.Exit(1)
+			fmt.Println(err)
+			return
 		}
 
-		// PONG
+		fmt.Printf("%+v\n", value)
+
+		// ignore request and send back a PONG
 		conn.Write([]byte("+OK\r\n"))
+		// PONG
 	}
 
 	defer conn.Close()
