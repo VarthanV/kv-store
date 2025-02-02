@@ -3,7 +3,10 @@ package main
 import (
 	"fmt"
 	"net"
+	"strings"
 
+	"github.com/VarthanV/kv-store/command"
+	"github.com/VarthanV/kv-store/pkg/objects"
 	"github.com/VarthanV/kv-store/resp"
 	"github.com/sirupsen/logrus"
 )
@@ -33,18 +36,32 @@ func main() {
 		request := resp.NewResp(conn)
 		value, err := request.Read()
 		if err != nil {
-			fmt.Println(err)
+			logrus.Error(err)
 			return
 		}
 
-		fmt.Printf("%+v\n", value)
+		if value.Typ != objects.ARRAY {
+			logrus.Error("invalid input expected input type ", objects.ARRAY)
+			continue
+		}
+
+		if len(value.Arr) == 0 {
+			logrus.Error("invalid length, expected args > 0")
+			continue
+		}
+
+		cmd := strings.ToLower(value.Arr[0].Bulk)
+		args := value.Arr[1:]
 
 		writer := resp.NewWriter(conn)
-		writer.Write(value)
 
-		// ignore request and send back a PONG
-		conn.Write([]byte("+OK\r\n"))
-		// PONG
+		handler, ok := command.Handlers[cmd]
+		if !ok {
+			logrus.Error("invalid command ", cmd)
+			writer.Write(&resp.Value{Typ: objects.SIMPLE_STRING, Str: "invalid command"})
+			continue
+		}
+		result := handler(args)
+		writer.Write(&result)
 	}
-
 }
