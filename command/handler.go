@@ -78,11 +78,13 @@ func (h *Handler) set(args []resp.Value) resp.Value {
 			h.mu.Lock()
 			h.sets[key] = value
 			h.mu.Unlock()
+			logrus.Debugf("set key %s to value %s in normal set", key, value)
 		} else {
 			h.mu.Lock()
 			var atomicVal atomic.Int64
 			atomicVal.Store(int64(_val))
 			h.intsets[key] = &atomicVal
+			logrus.Debugf("set key %s to value %s in integer set", key, value)
 		}
 	}
 	return resp.Value{Typ: objects.SIMPLE_STRING, Str: "OK"}
