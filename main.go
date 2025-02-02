@@ -56,14 +56,8 @@ func main() {
 		writer := resp.NewWriter(conn)
 
 		commandClient := command.New()
-		handler, ok := commandClient.GetHandler(cmd)
-		if !ok {
-			logrus.Error("command not found")
-			writer.Write(&resp.Value{Typ: objects.SIMPLE_STRING, Str: "command not found"})
-			continue
-		}
+		result := commandClient.Handle(cmd, args)
 
-		result := handler(args)
 		writer.Write(&result)
 	}
 }
