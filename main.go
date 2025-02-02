@@ -55,12 +55,14 @@ func main() {
 
 		writer := resp.NewWriter(conn)
 
-		handler, ok := command.Handlers[cmd]
+		commandClient := command.New()
+		handler, ok := commandClient.GetHandler(cmd)
 		if !ok {
-			logrus.Error("invalid command ", cmd)
-			writer.Write(&resp.Value{Typ: objects.SIMPLE_STRING, Str: "invalid command"})
+			logrus.Error("command not found")
+			writer.Write(&resp.Value{Typ: objects.SIMPLE_STRING, Str: "command not found"})
 			continue
 		}
+
 		result := handler(args)
 		writer.Write(&result)
 	}
