@@ -86,7 +86,7 @@ func (r *Resp) Read() (*Value, error) {
 
 func (r *Resp) readArray() (*Value, error) {
 	v := Value{}
-	v.typ = "array"
+	v.Typ = "array"
 
 	// length of array first to be read
 	len, _, err := r.readIntegerFromInput()
@@ -94,7 +94,7 @@ func (r *Resp) readArray() (*Value, error) {
 		return nil, err
 	}
 
-	v.arr = make([]Value, 0)
+	v.Arr = make([]Value, 0)
 	for i := 0; i < len; i++ {
 		val, err := r.Read()
 		if err != nil {
@@ -102,7 +102,7 @@ func (r *Resp) readArray() (*Value, error) {
 		}
 
 		// append parsed value to array
-		v.arr = append(v.arr, *val)
+		v.Arr = append(v.Arr, *val)
 	}
 
 	return &v, nil
@@ -111,7 +111,7 @@ func (r *Resp) readArray() (*Value, error) {
 func (r *Resp) readBulk() (*Value, error) {
 	v := Value{}
 
-	v.typ = "bulk"
+	v.Typ = "bulk"
 
 	len, _, err := r.readIntegerFromInput()
 	if err != nil {
@@ -122,7 +122,7 @@ func (r *Resp) readBulk() (*Value, error) {
 
 	r.reader.Read(bulk)
 
-	v.bulk = string(bulk)
+	v.Bulk = string(bulk)
 
 	// Read the trailing CRLF
 	r.readLine()
@@ -132,12 +132,12 @@ func (r *Resp) readBulk() (*Value, error) {
 
 func (r *Resp) readInteger() (*Value, error) {
 	v := Value{}
-	v.typ = objects.INTEGER
+	v.Typ = objects.INTEGER
 
 	val, _, err := r.readIntegerFromInput()
 	if err != nil {
 		return nil, err
 	}
-	v.num = val
+	v.Num = val
 	return &v, nil
 }

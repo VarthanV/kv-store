@@ -30,14 +30,17 @@ func main() {
 	// and acheive the same here. Redis uses epoll and select to listen from multiple
 	// fds simultaneously. This is just to make things simple
 	for {
-		resp := resp.NewResp(conn)
-		value, err := resp.Read()
+		request := resp.NewResp(conn)
+		value, err := request.Read()
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
 
 		fmt.Printf("%+v\n", value)
+
+		writer := resp.NewWriter(conn)
+		writer.Write(value)
 
 		// ignore request and send back a PONG
 		conn.Write([]byte("+OK\r\n"))

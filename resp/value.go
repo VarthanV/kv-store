@@ -2,6 +2,7 @@ package resp
 
 import (
 	"bytes"
+	"io"
 	"strconv"
 
 	"github.com/VarthanV/kv-store/pkg/objects"
@@ -9,22 +10,20 @@ import (
 
 type Value struct {
 	// type inferred from the first byte
-	typ objects.ValueType
-	// key received when asked to store key value pair
-	key string
+	Typ objects.ValueType
 	// string received when asked to store simple string
-	str string
-	// string received when asked to store bulk string
-	bulk string
-	// num received when asked to store integer
-	num int
+	Str string
+	// string received when asked to store Bulk string
+	Bulk string
+	// Num received when asked to store integer
+	Num int
 	// array received when asked to store array
-	arr []Value
+	Arr []Value
 }
 
 // Marshal: marshals the current value to RESP format
 func (v *Value) Marshal() []byte {
-	switch v.typ {
+	switch v.Typ {
 	case objects.ARRAY:
 		return v.marshalArray()
 	case objects.SIMPLE_STRING:
@@ -46,7 +45,7 @@ func (v *Value) Marshal() []byte {
 func (v *Value) marshalString() []byte {
 	var buf bytes.Buffer
 	buf.WriteByte(byte(STRING))
-	buf.WriteString(v.str)
+	buf.WriteString(v.Str)
 	buf.WriteString("\r\n")
 	return buf.Bytes()
 }
@@ -56,10 +55,10 @@ func (v *Value) marshalBulk() []byte {
 	var buf bytes.Buffer
 	buf.WriteByte(byte(BULK))
 	// Append len
-	buf.WriteString(strconv.Itoa(len(v.bulk)))
+	buf.WriteString(strconv.Itoa(len(v.Bulk)))
 	buf.WriteString("\r\n")
-	for i := 0; i < len(v.bulk); i++ {
-		buf.WriteByte(v.bulk[i])
+	for i := 0; i < len(v.Bulk); i++ {
+		buf.WriteByte(v.Bulk[i])
 	}
 	buf.WriteString("\r\n")
 	return buf.Bytes()
@@ -69,7 +68,7 @@ func (v *Value) marshalBulk() []byte {
 func (v *Value) marshalInteger() []byte {
 	var buf bytes.Buffer
 	buf.WriteByte(byte(INTEGER))
-	buf.WriteString(strconv.Itoa(v.num))
+	buf.WriteString(strconv.Itoa(v.Num))
 	buf.WriteString("\r\n")
 	return buf.Bytes()
 }
@@ -77,13 +76,13 @@ func (v *Value) marshalInteger() []byte {
 // marshalArray: marshals the array to RESP format
 func (v *Value) marshalArray() []byte {
 	var buf bytes.Buffer
-	len := len(v.arr)
+	len := len(v.Arr)
 	buf.WriteByte(byte(ARRAY))
 	buf.WriteString(strconv.Itoa(len))
 	// CRLF
 	buf.WriteString(`\r\n`)
 	for i := 0; i < len; i++ {
-		buf.Write(v.arr[i].Marshal())
+		buf.Write(v.Arr[i].Marshal())
 	}
 	return buf.Bytes()
 }
@@ -92,7 +91,7 @@ func (v *Value) marshalArray() []byte {
 func (v Value) marshallError() []byte {
 	var buf bytes.Buffer
 	buf.WriteByte(byte(ERROR))
-	buf.WriteString(v.str)
+	buf.WriteString(v.Str)
 	buf.WriteString(`\r\n`)
 	return buf.Bytes()
 }
@@ -100,4 +99,20 @@ func (v Value) marshallError() []byte {
 // marshallNull: marshals the null value to RESP format
 func (v *Value) marshallNull() []byte {
 	return []byte("$-1\r\n")
+}
+
+type writer struct {
+	writer io.Writer
+}
+
+func NewWriter(w io.Writer) *writer {
+	return &writer{writer: w}
+}
+
+func (w *writer) Write(v *Value) error {
+	_, err := w.writer.Write(v.Marshal())
+	if err != nil {
+		return err
+	}
+	return nil
 }
