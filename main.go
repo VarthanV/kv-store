@@ -12,6 +12,7 @@ import (
 )
 
 func main() {
+	logrus.SetLevel(logrus.DebugLevel)
 	const PORT = "6363"
 	l, err := net.Listen("tcp", fmt.Sprintf(":%s", PORT))
 	if err != nil {
@@ -50,7 +51,7 @@ func main() {
 			continue
 		}
 
-		cmd := strings.ToLower(value.Arr[0].Bulk)
+		cmd := strings.ToUpper(value.Arr[0].Bulk)
 		args := value.Arr[1:]
 
 		writer := resp.NewWriter(conn)
