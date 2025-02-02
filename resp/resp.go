@@ -76,6 +76,8 @@ func (r *Resp) Read() (*Value, error) {
 		return r.readArray()
 	case BULK:
 		return r.readBulk()
+	case INTEGER:
+		return r.readInteger()
 
 	default:
 		return nil, fmt.Errorf("unknown type %s", string(typ))

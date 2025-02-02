@@ -8,4 +8,5 @@ const (
 	INTEGER       ValueType = "integer"
 	BULK_STRING   ValueType = "bulk_string"
 	ARRAY         ValueType = "array"
+	NULL                    = "null"
 )
