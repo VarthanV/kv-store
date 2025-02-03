@@ -30,6 +30,8 @@ func main() {
 	}
 	defer conn.Close()
 
+	commandClient := command.New()
+
 	// Since Redis operates in a single threaded model we try to learn
 	// and acheive the same here. Redis uses epoll and select to listen from multiple
 	// fds simultaneously. This is just to make things simple
@@ -56,7 +58,6 @@ func main() {
 
 		writer := resp.NewWriter(conn)
 
-		commandClient := command.New()
 		result := commandClient.Handle(cmd, args)
 
 		writer.Write(&result)

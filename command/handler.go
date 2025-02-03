@@ -48,6 +48,8 @@ func (h *Handler) Handle(cmd string, args []resp.Value) resp.Value {
 		return h.ping(args)
 	case set:
 		return h.set(args)
+	case get:
+		return h.get(args)
 	default:
 		return resp.Value{Typ: objects.SIMPLE_STRING, Str: "Unknown command"}
 	}
@@ -89,4 +91,34 @@ func (h *Handler) set(args []resp.Value) resp.Value {
 	}
 
 	return resp.Value{Typ: objects.SIMPLE_STRING, Str: "OK"}
+}
+
+func (h *Handler) get(args []resp.Value) resp.Value {
+	if len(args) != 1 {
+		logrus.Error("invalid number of arguments")
+		return resp.Value{Typ: objects.SIMPLE_STRING, Str: "Invalid number of arguments for GET"}
+	}
+
+	key := args[0]
+
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	// Check if it is in the intset
+	_val, ok := h.intsets[key.Bulk]
+	if ok {
+		logrus.Debugf("key %s found in integer set", key.Bulk)
+		h.mu.Unlock()
+		return resp.Value{Typ: objects.INTEGER, Num: int(_val.Load())}
+	}
+
+	// Check if it is in the normal set
+	val, ok := h.sets[key.Bulk]
+	if ok {
+		logrus.Debugf("key %s found in normal set", key.Bulk)
+		h.mu.Unlock()
+		return resp.Value{Typ: objects.BULK_STRING, Bulk: val}
+	}
+
+	return resp.Value{Typ: objects.NULL}
 }
