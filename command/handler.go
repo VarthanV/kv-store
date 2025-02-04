@@ -66,9 +66,9 @@ func (h *Handler) Handle(cmd string, args []resp.Value) resp.Value {
 	case del:
 		return h.del(args)
 	case incr:
-		return h.incrOrDecr(args, true)
+		return h.incrOrDecr(args, struct{ doincrement bool }{true})
 	case decr:
-		return h.incrOrDecr(args, false)
+		return h.incrOrDecr(args, struct{ doincrement bool }{false})
 	default:
 		return resp.Value{Typ: objects.SIMPLE_STRING, Str: "Unknown command"}
 	}
@@ -196,7 +196,7 @@ func (h *Handler) del(args []resp.Value) resp.Value {
 	return okResponse()
 }
 
-func (h *Handler) incrOrDecr(args []resp.Value, increment bool) resp.Value {
+func (h *Handler) incrOrDecr(args []resp.Value, params struct{ doincrement bool }) resp.Value {
 	if len(args) != 1 {
 		logrus.Error("invalid args to increment")
 		return resp.Value{Typ: objects.SIMPLE_STRING, Str: "Invalid number of arguments,only keyname expected"}
@@ -215,7 +215,7 @@ func (h *Handler) incrOrDecr(args []resp.Value, increment bool) resp.Value {
 		logrus.Error("error in parsing int ", err)
 		return resp.Value{Typ: objects.SIMPLE_STRING, Str: ""}
 	}
-	if increment {
+	if params.doincrement {
 		valInt++
 	} else {
 		valInt--
