@@ -11,10 +11,12 @@ import (
 type command string
 
 const (
-	ping command = "PING"
-	get  command = "GET"
-	set  command = "SET"
-	hset command = "HSET"
+	ping    command = "PING"
+	get     command = "GET"
+	set     command = "SET"
+	hset    command = "HSET"
+	hget    command = "HGET"
+	hgetall command = "HGETALL"
 )
 
 // HandlerFunc: Signature for the handler func to be implemented
@@ -26,7 +28,7 @@ type HandlerFuncMap map[string]HandlerFunc
 type Handler struct {
 	mu          sync.Mutex
 	sets        map[string]string
-	hsets       map[string]map[string]interface{}
+	hsets       map[string]map[string]string
 	keyMetaData map[string]string
 }
 
@@ -34,7 +36,7 @@ func New() *Handler {
 	return &Handler{
 		mu:          sync.Mutex{},
 		sets:        make(map[string]string),
-		hsets:       make(map[string]map[string]interface{}),
+		hsets:       make(map[string]map[string]string),
 		keyMetaData: map[string]string{},
 	}
 }
@@ -53,6 +55,10 @@ func (h *Handler) Handle(cmd string, args []resp.Value) resp.Value {
 		return h.get(args)
 	case hset:
 		return h.hset(args)
+	case hget:
+		return h.hget(args)
+	case hgetall:
+		return h.hgetAll(args)
 	default:
 		return resp.Value{Typ: objects.SIMPLE_STRING, Str: "Unknown command"}
 	}
@@ -107,7 +113,7 @@ func (h *Handler) hset(args []resp.Value) resp.Value {
 		logrus.Error("atleast")
 	}
 	key := args[0]
-	val := map[string]interface{}{}
+	val := map[string]string{}
 
 	for i := 0; i < len(args); i += 2 {
 		// Ensure we don't go out of bounds
@@ -121,4 +127,36 @@ func (h *Handler) hset(args []resp.Value) resp.Value {
 	h.mu.Unlock()
 
 	return okResponse()
+}
+
+func (h *Handler) hget(args []resp.Value) resp.Value {
+	if len(args) != 2 {
+		logrus.Error("invalid number of arguments")
+		return resp.Value{Typ: objects.SIMPLE_STRING, Str: "Invalid number of arguments for HGET"}
+	}
+	key := args[0]
+	field := args[1]
+
+	h.mu.Lock()
+	val := h.hsets[key.Bulk][field.Bulk]
+	h.mu.Unlock()
+	return resp.Value{Typ: objects.BULK_STRING, Bulk: val}
+}
+
+func (h *Handler) hgetAll(args []resp.Value) resp.Value {
+	if len(args) != 1 {
+		logrus.Error("invalid number of arguments , expected only key")
+		return resp.Value{Typ: objects.SIMPLE_STRING, Str: "Invalid number of arguments for HGETALL ,expected only key"}
+	}
+
+	h.mu.Lock()
+	val := h.hsets[args[0].Bulk]
+	h.mu.Unlock()
+
+	res := resp.Value{}
+	for k, v := range val {
+		res.Arr = append(res.Arr, resp.Value{Typ: objects.BULK_STRING, Bulk: k})
+		res.Arr = append(res.Arr, resp.Value{Typ: objects.BULK_STRING, Bulk: v})
+	}
+	return res
 }
