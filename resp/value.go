@@ -79,8 +79,7 @@ func (v *Value) marshalArray() []byte {
 	len := len(v.Arr)
 	buf.WriteByte(byte(ARRAY))
 	buf.WriteString(strconv.Itoa(len))
-	// CRLF
-	buf.WriteString(`\r\n`)
+	buf.WriteString("\r\n")
 	for i := 0; i < len; i++ {
 		buf.Write(v.Arr[i].Marshal())
 	}
