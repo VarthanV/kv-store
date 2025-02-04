@@ -17,6 +17,7 @@ const (
 	hset    command = "HSET"
 	hget    command = "HGET"
 	hgetall command = "HGETALL"
+	del     command = "DEL"
 )
 
 // HandlerFunc: Signature for the handler func to be implemented
@@ -59,6 +60,8 @@ func (h *Handler) Handle(cmd string, args []resp.Value) resp.Value {
 		return h.hget(args)
 	case hgetall:
 		return h.hgetAll(args)
+	case del:
+		return h.del(args)
 	default:
 		return resp.Value{Typ: objects.SIMPLE_STRING, Str: "Unknown command"}
 	}
@@ -110,14 +113,17 @@ func (h *Handler) get(args []resp.Value) resp.Value {
 
 func (h *Handler) hset(args []resp.Value) resp.Value {
 	if len(args) < 3 {
-		logrus.Error("atleast")
+		logrus.Error("atleast one key name and key-value pair is required")
+		return resp.Value{Typ: objects.SIMPLE_STRING, Str: "atleast one key name and key-value pair is required"}
 	}
+
 	key := args[0]
 	val := map[string]string{}
 
-	for i := 0; i < len(args); i += 2 {
+	for i := 1; i < len(args); i += 2 {
 		// Ensure we don't go out of bounds
 		if i+1 < len(args) {
+			logrus.Debugf("Setting key %s to value %s", args[i].Bulk, args[i+1].Bulk)
 			val[args[i].Bulk] = args[i+1].Bulk
 		}
 	}
@@ -153,10 +159,32 @@ func (h *Handler) hgetAll(args []resp.Value) resp.Value {
 	val := h.hsets[args[0].Bulk]
 	h.mu.Unlock()
 
-	res := resp.Value{}
+	res := resp.Value{
+		Typ: objects.ARRAY,
+		Arr: make([]resp.Value, 0),
+	}
+	if val == nil {
+		res.Arr = []resp.Value{}
+		return res
+	}
+
+	arrSize := len(val) * 2
+	res.Arr = make([]resp.Value, 0, arrSize)
+
 	for k, v := range val {
 		res.Arr = append(res.Arr, resp.Value{Typ: objects.BULK_STRING, Bulk: k})
 		res.Arr = append(res.Arr, resp.Value{Typ: objects.BULK_STRING, Bulk: v})
 	}
 	return res
+}
+
+func (h *Handler) del(args []resp.Value) resp.Value {
+	if len(args) == 0 {
+		logrus.Error("args cannot be empty")
+		return resp.Value{Typ: objects.SIMPLE_STRING, Str: "args cannot be empty"}
+
+	}
+	h.mu.Lock()
+	delete(h.sets, args[0].Bulk)
+	return okResponse()
 }
