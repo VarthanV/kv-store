@@ -28,8 +28,7 @@ func New(path string) (*Aof, error) {
 	}
 
 	go func() {
-		ticker := time.NewTicker(time.Second * 60 * 2) // every 2mins
-
+		ticker := time.NewTicker(time.Second * 60 * 2) // every 2 mins
 		for range ticker.C {
 			aof.mu.Lock()
 			err := aof.f.Sync()
