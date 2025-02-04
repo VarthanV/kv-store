@@ -1,6 +1,7 @@
 package command
 
 import (
+	"strconv"
 	"sync"
 
 	"github.com/VarthanV/kv-store/pkg/objects"
@@ -18,6 +19,8 @@ const (
 	hget    command = "HGET"
 	hgetall command = "HGETALL"
 	del     command = "DEL"
+	incr    command = "INCR"
+	decr    command = "DECR"
 )
 
 // HandlerFunc: Signature for the handler func to be implemented
@@ -62,6 +65,10 @@ func (h *Handler) Handle(cmd string, args []resp.Value) resp.Value {
 		return h.hgetAll(args)
 	case del:
 		return h.del(args)
+	case incr:
+		return h.incrOrDecr(args, true)
+	case decr:
+		return h.incrOrDecr(args, false)
 	default:
 		return resp.Value{Typ: objects.SIMPLE_STRING, Str: "Unknown command"}
 	}
@@ -187,4 +194,33 @@ func (h *Handler) del(args []resp.Value) resp.Value {
 	h.mu.Lock()
 	delete(h.sets, args[0].Bulk)
 	return okResponse()
+}
+
+func (h *Handler) incrOrDecr(args []resp.Value, increment bool) resp.Value {
+	if len(args) != 1 {
+		logrus.Error("invalid args to increment")
+		return resp.Value{Typ: objects.SIMPLE_STRING, Str: "Invalid number of arguments,only keyname expected"}
+	}
+
+	key := args[0]
+
+	h.mu.Lock()
+	val, ok := h.sets[key.Bulk]
+	if !ok {
+		return resp.Value{Typ: objects.SIMPLE_STRING, Str: ""}
+	}
+
+	valInt, err := strconv.ParseInt(val, 10, 64)
+	if err != nil {
+		logrus.Error("error in parsing int ", err)
+		return resp.Value{Typ: objects.SIMPLE_STRING, Str: ""}
+	}
+	if increment {
+		valInt++
+	} else {
+		valInt--
+	}
+	h.sets[key.Bulk] = strconv.FormatInt(valInt, 10)
+	h.mu.Unlock()
+	return resp.Value{Typ: objects.INTEGER, Num: int(valInt)}
 }
