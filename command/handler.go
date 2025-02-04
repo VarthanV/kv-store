@@ -14,6 +14,7 @@ const (
 	ping command = "PING"
 	get  command = "GET"
 	set  command = "SET"
+	hset command = "HSET"
 )
 
 // HandlerFunc: Signature for the handler func to be implemented
@@ -25,7 +26,7 @@ type HandlerFuncMap map[string]HandlerFunc
 type Handler struct {
 	mu          sync.Mutex
 	sets        map[string]string
-	hsets       map[string]map[string]string
+	hsets       map[string]map[string]interface{}
 	keyMetaData map[string]string
 }
 
@@ -33,9 +34,13 @@ func New() *Handler {
 	return &Handler{
 		mu:          sync.Mutex{},
 		sets:        make(map[string]string),
-		hsets:       make(map[string]map[string]string),
+		hsets:       make(map[string]map[string]interface{}),
 		keyMetaData: map[string]string{},
 	}
+}
+
+func okResponse() resp.Value {
+	return resp.Value{Typ: objects.SIMPLE_STRING, Str: "OK"}
 }
 
 func (h *Handler) Handle(cmd string, args []resp.Value) resp.Value {
@@ -46,6 +51,8 @@ func (h *Handler) Handle(cmd string, args []resp.Value) resp.Value {
 		return h.set(args)
 	case get:
 		return h.get(args)
+	case hset:
+		return h.hset(args)
 	default:
 		return resp.Value{Typ: objects.SIMPLE_STRING, Str: "Unknown command"}
 	}
@@ -93,4 +100,25 @@ func (h *Handler) get(args []resp.Value) resp.Value {
 	}
 
 	return resp.Value{Typ: objects.NULL}
+}
+
+func (h *Handler) hset(args []resp.Value) resp.Value {
+	if len(args) < 3 {
+		logrus.Error("atleast")
+	}
+	key := args[0]
+	val := map[string]interface{}{}
+
+	for i := 0; i < len(args); i += 2 {
+		// Ensure we don't go out of bounds
+		if i+1 < len(args) {
+			val[args[i].Bulk] = args[i+1].Bulk
+		}
+	}
+
+	h.mu.Lock()
+	h.hsets[key.Bulk] = val
+	h.mu.Unlock()
+
+	return okResponse()
 }
