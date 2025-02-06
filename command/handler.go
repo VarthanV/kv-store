@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/VarthanV/kv-store/pkg/objects"
+	"github.com/VarthanV/kv-store/pkg/utils"
 	"github.com/VarthanV/kv-store/resp"
 	"github.com/sirupsen/logrus"
 )
@@ -22,6 +23,7 @@ const (
 	incr    command = "INCR"
 	decr    command = "DECR"
 	rappend command = "APPEND"
+	lpush   command = "LPUSH"
 )
 
 // HandlerFunc: Signature for the handler func to be implemented
@@ -74,6 +76,9 @@ func (h *Handler) Handle(cmd string, args []resp.Value) resp.Value {
 		return h.incrOrDecr(args, struct{ doincrement bool }{false})
 	case rappend:
 		return h.append(args)
+	case lpush:
+		return h.lpush(args)
+
 	default:
 		return resp.Value{Typ: objects.SIMPLE_STRING, Str: "Unknown command"}
 	}
@@ -252,4 +257,25 @@ func (h *Handler) append(args []resp.Value) resp.Value {
 	h.sets[key.Bulk] = valStr
 	h.mu.Unlock()
 	return resp.Value{Typ: objects.SIMPLE_STRING, Str: valStr}
+}
+
+func (h *Handler) lpush(args []resp.Value) resp.Value {
+	key := args[0]
+	h.mu.Lock()
+
+	val, ok := h.lists[key.Bulk]
+	if !ok {
+		logrus.Info("key doesn't exist")
+		val = make([]string, 0)
+	}
+
+	l := []string{}
+	l = append(l, val...)
+
+	for i := 1; i < len(args); i++ {
+		utils.Insert(l, 0, args[i].Bulk)
+	}
+	h.lists[key.Bulk] = l
+	h.mu.Unlock()
+	return resp.Value{Typ: objects.INTEGER, Num: len(l)}
 }
