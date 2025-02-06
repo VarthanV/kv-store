@@ -27,6 +27,7 @@ const (
 	rpush   command = "RPUSH"
 	lpop    command = "LPOP"
 	rpop    command = "rpop"
+	lrange  command = "lrange"
 )
 
 // HandlerFunc: Signature for the handler func to be implemented
@@ -36,7 +37,7 @@ type HandlerFunc func(args []resp.Value) resp.Value
 type HandlerFuncMap map[string]HandlerFunc
 
 type Handler struct {
-	mu          sync.Mutex
+	mu          sync.RWMutex
 	sets        map[string]string
 	hsets       map[string]map[string]string
 	lists       map[string][]string
@@ -45,7 +46,7 @@ type Handler struct {
 
 func New() *Handler {
 	return &Handler{
-		mu:          sync.Mutex{},
+		mu:          sync.RWMutex{},
 		sets:        make(map[string]string),
 		hsets:       make(map[string]map[string]string),
 		keyMetaData: map[string]string{},
@@ -87,6 +88,8 @@ func (h *Handler) Handle(cmd string, args []resp.Value) resp.Value {
 		return h.lpop(args)
 	case rpop:
 		return h.rpop(args)
+	case lrange:
+		return h.lrange(args)
 	default:
 		return resp.Value{Typ: objects.SIMPLE_STRING, Str: "Unknown command"}
 	}
@@ -365,4 +368,65 @@ func (h *Handler) rpop(args []resp.Value) resp.Value {
 	h.lists[key.Bulk] = slice
 
 	return resp.Value{Typ: objects.SIMPLE_STRING, Str: lastElem}
+}
+
+func (h *Handler) lrange(args []resp.Value) resp.Value {
+	if len(args) != 3 {
+		err := "expected key name, start range, end range"
+		logrus.Error(err)
+		return resp.Value{Typ: objects.ERROR_MESSAGE, Str: err}
+	}
+
+	key := args[0].Bulk
+	startIdx, err := strconv.Atoi(args[1].Bulk)
+	if err != nil {
+		logrus.Error("error in converting start idx ", err)
+		return resp.Value{Typ: objects.ERROR_MESSAGE, Str: "error in converting start idx"}
+	}
+
+	endIdx, err := strconv.Atoi(args[2].Bulk)
+	if err != nil {
+		logrus.Error("error in converting end idx ", err)
+		return resp.Value{Typ: objects.ERROR_MESSAGE, Str: "error in converting end idx"}
+	}
+
+	res := resp.Value{
+		Typ: objects.ARRAY,
+		Arr: make([]resp.Value, 0),
+	}
+
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	list, ok := h.lists[key]
+	if !ok {
+		return res
+	}
+
+	listLen := len(list)
+	if startIdx < 0 {
+		startIdx = listLen + startIdx
+	}
+	if endIdx < 0 {
+		endIdx = listLen + endIdx
+	}
+
+	if startIdx < 0 {
+		startIdx = 0
+	}
+	if endIdx >= listLen {
+		endIdx = listLen - 1
+	}
+	if startIdx > endIdx || startIdx >= listLen {
+		return res
+	}
+
+	for i := startIdx; i <= endIdx; i++ {
+		res.Arr = append(res.Arr, resp.Value{
+			Typ:  objects.BULK_STRING,
+			Bulk: list[i],
+		})
+	}
+
+	return res
 }
