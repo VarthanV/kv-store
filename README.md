@@ -7,16 +7,29 @@ A [Redis serialization protocol specification(RESP)](https://redis.io/docs/lates
 - RESP Protocol Implementation
 - In-memory key-value store
 - Thread-safe operations
-- Supports Redis Commands:
-  - `PING` - Test server connectivity
-  - `SET key value` - Store a key-value pair
-  - `GET key` - Retrieve value by key
-  - `DEL key` - Delete a key
-  - `HSET key field value [field value ...]` - Store hash field-value pairs
-  - `HGET key field` - Retrieve hash field value
-  - `HGETALL key` - Retrieve all field-value pairs of a hash
-  - `INCR key` - Increment the integer value of a key by one
-  - `DECR key` - Decrement the integer value of a key by one
+- Supports multiple data structures (Strings, Lists, Hashes)
+
+## Supported Commands
+
+### String Operations
+- `PING [message]` - Test server connectivity
+- `SET key value` - Store a key-value pair
+- `GET key` - Retrieve value by key
+- `DEL key` - Delete a key
+- `INCR key` - Increment the integer value of a key by one
+- `DECR key` - Decrement the integer value of a key by one
+- `APPEND key value` - Append a value to an existing string
+
+### Hash Operations
+- `HSET key field value [field value ...]` - Store hash field-value pairs
+- `HGET key field` - Retrieve hash field value
+- `HGETALL key` - Retrieve all field-value pairs of a hash
+
+### List Operations
+- `LPUSH key value [value ...]` - Insert elements at the head of a list
+- `RPUSH key value [value ...]` - Insert elements at the tail of a list
+- `LPOP key` - Remove and return the first element of a list
+- `RPOP key` - Remove and return the last element of a list
 
 ## Getting Started
 
