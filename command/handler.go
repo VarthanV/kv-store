@@ -21,6 +21,7 @@ const (
 	del     command = "DEL"
 	incr    command = "INCR"
 	decr    command = "DECR"
+	rappend command = "APPEND"
 )
 
 // HandlerFunc: Signature for the handler func to be implemented
@@ -69,6 +70,8 @@ func (h *Handler) Handle(cmd string, args []resp.Value) resp.Value {
 		return h.incrOrDecr(args, struct{ doincrement bool }{true})
 	case decr:
 		return h.incrOrDecr(args, struct{ doincrement bool }{false})
+	case rappend:
+		return h.append(args)
 	default:
 		return resp.Value{Typ: objects.SIMPLE_STRING, Str: "Unknown command"}
 	}
@@ -223,4 +226,28 @@ func (h *Handler) incrOrDecr(args []resp.Value, params struct{ doincrement bool 
 	h.sets[key.Bulk] = strconv.FormatInt(valInt, 10)
 	h.mu.Unlock()
 	return resp.Value{Typ: objects.INTEGER, Num: int(valInt)}
+}
+
+func (h *Handler) append(args []resp.Value) resp.Value {
+	if len(args) != 2 {
+		logrus.Error("key and value to be appended to the string is needed")
+		return resp.Value{Typ: objects.SIMPLE_STRING, Str: "key and value to be appended to the string is needed"}
+	}
+
+	key := args[0]
+	val := args[1]
+
+	h.mu.Lock()
+
+	valStr, ok := h.sets[key.Bulk]
+	if !ok {
+		h.mu.Unlock()
+		return resp.Value{Typ: objects.SIMPLE_STRING, Str: ""}
+	}
+
+	valStr += val.Bulk
+
+	h.sets[key.Bulk] = valStr
+	h.mu.Unlock()
+	return resp.Value{Typ: objects.SIMPLE_STRING, Str: valStr}
 }
