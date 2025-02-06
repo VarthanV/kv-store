@@ -24,6 +24,7 @@ const (
 	decr    command = "DECR"
 	rappend command = "APPEND"
 	lpush   command = "LPUSH"
+	rpush   command = "RPUSH"
 )
 
 // HandlerFunc: Signature for the handler func to be implemented
@@ -78,7 +79,8 @@ func (h *Handler) Handle(cmd string, args []resp.Value) resp.Value {
 		return h.append(args)
 	case lpush:
 		return h.lpush(args)
-
+	case rpush:
+		return h.rpush(args)
 	default:
 		return resp.Value{Typ: objects.SIMPLE_STRING, Str: "Unknown command"}
 	}
@@ -273,9 +275,29 @@ func (h *Handler) lpush(args []resp.Value) resp.Value {
 	l = append(l, val...)
 
 	for i := 1; i < len(args); i++ {
-		utils.Insert(l, 0, args[i].Bulk)
+		l = utils.Insert(l, 0, args[i].Bulk)
 	}
 	h.lists[key.Bulk] = l
 	h.mu.Unlock()
 	return resp.Value{Typ: objects.INTEGER, Num: len(l)}
+}
+
+func (h *Handler) rpush(args []resp.Value) resp.Value {
+
+	key := args[0]
+	h.mu.Lock()
+
+	_, ok := h.lists[key.Bulk]
+	if !ok {
+		logrus.Info("key doesn't exist")
+		h.lists[key.Bulk] = make([]string, 0)
+	}
+
+	for i := 1; i < len(args); i++ {
+		h.lists[key.Bulk] = append(h.lists[key.Bulk], args[i].Bulk)
+	}
+
+	l := len(h.lists[key.Bulk])
+	h.mu.Unlock()
+	return resp.Value{Typ: objects.INTEGER, Num: l}
 }
