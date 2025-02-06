@@ -91,7 +91,7 @@ func (v Value) marshallError() []byte {
 	var buf bytes.Buffer
 	buf.WriteByte(byte(ERROR))
 	buf.WriteString(v.Str)
-	buf.WriteString(`\r\n`)
+	buf.WriteString("\r\n")
 	return buf.Bytes()
 }
 

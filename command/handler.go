@@ -25,6 +25,8 @@ const (
 	rappend command = "APPEND"
 	lpush   command = "LPUSH"
 	rpush   command = "RPUSH"
+	lpop    command = "LPOP"
+	rpop    command = "rpop"
 )
 
 // HandlerFunc: Signature for the handler func to be implemented
@@ -81,6 +83,10 @@ func (h *Handler) Handle(cmd string, args []resp.Value) resp.Value {
 		return h.lpush(args)
 	case rpush:
 		return h.rpush(args)
+	case lpop:
+		return h.lpop(args)
+	case rpop:
+		return h.rpop(args)
 	default:
 		return resp.Value{Typ: objects.SIMPLE_STRING, Str: "Unknown command"}
 	}
@@ -300,4 +306,63 @@ func (h *Handler) rpush(args []resp.Value) resp.Value {
 	l := len(h.lists[key.Bulk])
 	h.mu.Unlock()
 	return resp.Value{Typ: objects.INTEGER, Num: l}
+}
+
+func (h *Handler) lpop(args []resp.Value) resp.Value {
+	if len(args) != 1 {
+		logrus.Error("key is needed")
+		return resp.Value{Typ: objects.ERROR_MESSAGE, Str: "key is needed"}
+	}
+
+	key := args[0]
+
+	h.mu.Lock()
+
+	val, ok := h.lists[key.Bulk]
+	if !ok {
+		logrus.Info("key doesn't exist")
+		return resp.Value{Typ: objects.SIMPLE_STRING, Str: ""}
+	}
+
+	if len(val) == 0 {
+		return resp.Value{Typ: objects.SIMPLE_STRING, Str: ""}
+	}
+
+	elem := val[0]
+	val = val[1:]
+
+	h.lists[key.Bulk] = val
+
+	h.mu.Unlock()
+
+	return resp.Value{Typ: objects.SIMPLE_STRING, Str: elem}
+}
+
+func (h *Handler) rpop(args []resp.Value) resp.Value {
+	if len(args) != 1 {
+		logrus.Error("key is needed")
+		return resp.Value{Typ: objects.ERROR_MESSAGE, Str: "key is needed"}
+	}
+
+	h.mu.Lock()
+	if len(h.lists) == 0 {
+		h.mu.Unlock()
+		return resp.Value{Typ: objects.SIMPLE_STRING, Str: ""}
+	}
+
+	key := args[0]
+
+	val, ok := h.lists[key.Bulk]
+	if !ok {
+		logrus.Error("key not found")
+		h.mu.Unlock()
+		return resp.Value{Typ: objects.SIMPLE_STRING, Str: ""}
+	}
+
+	lastElem := val[len(val)-1]
+	slice := val[:len(val)-1]
+
+	h.lists[key.Bulk] = slice
+
+	return resp.Value{Typ: objects.SIMPLE_STRING, Str: lastElem}
 }
