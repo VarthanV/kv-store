@@ -88,3 +88,8 @@ OK
 - Thread-safe operations using mutex locks
 - In-memory storage with map data structures
 - RESP protocol compliance for Redis client compatibility
+
+## Pipeline
+
+- [] Implement registry pattern for dynamic command registration and cleaner code base
+- [] Append only file log persistence - WIP
