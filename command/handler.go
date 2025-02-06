@@ -34,6 +34,7 @@ type Handler struct {
 	mu          sync.Mutex
 	sets        map[string]string
 	hsets       map[string]map[string]string
+	lists       map[string][]string
 	keyMetaData map[string]string
 }
 
@@ -43,6 +44,7 @@ func New() *Handler {
 		sets:        make(map[string]string),
 		hsets:       make(map[string]map[string]string),
 		keyMetaData: map[string]string{},
+		lists:       make(map[string][]string),
 	}
 }
 
