@@ -1,6 +1,7 @@
 package command
 
 import (
+	"slices"
 	"strconv"
 	"sync"
 
@@ -93,6 +94,10 @@ func (h *Handler) Handle(cmd string, args []resp.Value) resp.Value {
 	default:
 		return resp.Value{Typ: objects.SIMPLE_STRING, Str: "Unknown command"}
 	}
+}
+
+func (h *Handler) DoPersist(cmd string) bool {
+	return slices.Contains([]command{set, hset, incr, decr, del, rappend, lpush, rpush, lpop, rpop}, command(cmd))
 }
 
 func (h *Handler) ping(args []resp.Value) resp.Value {

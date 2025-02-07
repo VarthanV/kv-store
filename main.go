@@ -5,6 +5,7 @@ import (
 	"net"
 	"strings"
 
+	"github.com/VarthanV/kv-store/aof"
 	"github.com/VarthanV/kv-store/command"
 	"github.com/VarthanV/kv-store/pkg/objects"
 	"github.com/VarthanV/kv-store/resp"
@@ -53,13 +54,23 @@ func main() {
 			continue
 		}
 
+		writer := resp.NewWriter(conn)
+		f, err := aof.New("aof.log")
+		if err != nil {
+			logrus.Error("persistence not enabled")
+		}
+
+		defer f.Close()
+
 		cmd := strings.ToUpper(value.Arr[0].Bulk)
 		args := value.Arr[1:]
-
-		writer := resp.NewWriter(conn)
+		if commandClient.DoPersist(cmd) {
+			f.Write(value)
+		}
 
 		result := commandClient.Handle(cmd, args)
 
 		writer.Write(&result)
+
 	}
 }

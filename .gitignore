@@ -24,6 +24,5 @@
 # Go workspace file
 go.work
 
-*.aof
-
+*.log
 # End of https://www.toptal.com/developers/gitignore/api/go

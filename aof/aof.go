@@ -2,6 +2,7 @@ package aof
 
 import (
 	"bufio"
+	"io"
 	"os"
 	"sync"
 	"time"
@@ -28,8 +29,9 @@ func New(path string) (*Aof, error) {
 	}
 
 	go func() {
-		ticker := time.NewTicker(time.Second * 60 * 2) // every 2 mins
+		ticker := time.NewTicker(time.Second * 30 * 1) // every 2 mins
 		for range ticker.C {
+			logrus.Info("Flush routine started")
 			aof.mu.Lock()
 			err := aof.f.Sync()
 			if err != nil {
@@ -48,13 +50,33 @@ func (aof *Aof) Close() error {
 	return aof.f.Close()
 }
 
-func (aof *Aof) Write(value resp.Value) error {
+func (aof *Aof) Write(value *resp.Value) error {
 	aof.mu.Lock()
 	defer aof.mu.Unlock()
 
+	logrus.Info("writing to aof")
 	_, err := aof.f.Write(value.Marshal())
 	if err != nil {
 		return err
 	}
+	aof.f.Sync()
+	return nil
+}
+
+func (a *Aof) Read(callback func(val *resp.Value)) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	resp := resp.NewResp(a.f)
+
+	for {
+		value, err := resp.Read()
+		if err == nil {
+			callback(value)
+		}
+		if err == io.EOF {
+			break
+		}
+	}
+
 	return nil
 }
